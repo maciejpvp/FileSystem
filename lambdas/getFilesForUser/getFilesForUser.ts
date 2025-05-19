@@ -1,4 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  QueryCommand,
+  QueryCommandInput,
+} from "@aws-sdk/client-dynamodb";
 import {
   Handler,
   APIGatewayProxyEvent,
@@ -10,12 +14,34 @@ const dynamodb = new DynamoDBClient({});
 export const handler: Handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const userUuid = event.requestContext.authorizer?.claims.sub;
+  const tableName = process.env.DYNAMODB_NAME;
+  const userId = event.requestContext.authorizer?.claims.sub;
+  const body = JSON.parse(event.body || "{}");
+  const path = body.path || "";
+
+  const parentPath = `${userId}/${path}`;
+
+  const commandInput: QueryCommandInput = {
+    TableName: tableName,
+    IndexName: "byParentId",
+    KeyConditionExpression: "parentPath = :parentPathValue",
+    ExpressionAttributeValues: {
+      ":parentPathValue": { S: parentPath },
+    },
+  };
+
+  const command = new QueryCommand(commandInput);
+
+  const response = await dynamodb.send(command);
+
+  const files = response.Items;
 
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: "test",
+      message: "Successfully got files",
+      files,
+      response,
     }),
   };
 };

@@ -37,7 +37,7 @@ export const handler: Handler = async (
   let s3FilePath;
 
   if (path) {
-    s3FilePath = `${userId}/${path}/${fileUUID}`;
+    s3FilePath = `${userId}/${path}/${fileUUID}.${fileExtension}`;
   } else {
     s3FilePath = `${userId}/${fileUUID}.${fileExtension}`;
   }
@@ -64,7 +64,7 @@ export const handler: Handler = async (
   const item: FileStructureDocument = {
     userId: { S: userId },
     uuid: { S: fileUUID },
-    parentPath: { S: "/" },
+    parentPath: { S: `${userId}/${path ? path : ""}` },
     fileName: { S: file.filename },
     isFolder: { BOOL: false },
   };

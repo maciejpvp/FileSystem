@@ -17,14 +17,14 @@ export const handler: Handler = async (
   const tableName = process.env.DYNAMODB_NAME || "";
   const body = JSON.parse(event.body || "{}");
 
-  const path = body.path;
+  const path = body.path || "";
   const folderName = body.name;
   const uuid = uuidv4();
 
   const item: FileStructureDocument = {
     userId: { S: userId },
     uuid: { S: uuid },
-    parentPath: { S: `/root/${path}` },
+    parentPath: { S: `${userId}/${path}` },
     fileName: { S: folderName },
     isFolder: { BOOL: true },
   };
