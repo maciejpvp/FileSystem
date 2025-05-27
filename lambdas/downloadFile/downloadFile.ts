@@ -37,6 +37,12 @@ export const handler: Handler = async (
   } catch (err) {
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
       body: JSON.stringify({
         message: "failed",
         err,
@@ -49,6 +55,12 @@ export const handler: Handler = async (
   if (!item) {
     return {
       statusCode: 400,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
       body: JSON.stringify({
         errorCode: 1,
         message: "Item not found",
@@ -59,6 +71,12 @@ export const handler: Handler = async (
   if (item.isFolder) {
     return {
       statusCode: 400,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
       body: JSON.stringify({
         errorCode: 2,
         message: "Cant download a folder",
@@ -84,6 +102,12 @@ export const handler: Handler = async (
   } catch (err) {
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
       body: JSON.stringify({
         message: "failed",
         err,
@@ -93,6 +117,12 @@ export const handler: Handler = async (
 
   return {
     statusCode: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+      "Access-Control-Allow-Credentials": "true",
+    },
     body: JSON.stringify({
       result,
       s3Path,

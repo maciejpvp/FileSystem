@@ -7,6 +7,7 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamo from "aws-cdk-lib/aws-dynamodb";
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "../env";
+import { addCorsMock } from "../utils/cors";
 
 export class FileSystemStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -184,6 +185,8 @@ export class FileSystemStack extends cdk.Stack {
     );
 
     const uploadResource = api.root.addResource("upload-file");
+    addCorsMock(uploadResource);
+
     uploadResource.addMethod(
       "POST",
       new apigateway.LambdaIntegration(uploadFileLambda),
@@ -194,6 +197,8 @@ export class FileSystemStack extends cdk.Stack {
     );
 
     const getResource = api.root.addResource("get-files");
+    addCorsMock(getResource);
+
     getResource.addMethod(
       "POST",
       new apigateway.LambdaIntegration(getFilesForUser),
@@ -204,7 +209,11 @@ export class FileSystemStack extends cdk.Stack {
     );
 
     const download = api.root.addResource("download");
+    addCorsMock(download);
+
     const item = download.addResource("{uuid}");
+    addCorsMock(item);
+
     item.addMethod("GET", new apigateway.LambdaIntegration(downloadFile), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,

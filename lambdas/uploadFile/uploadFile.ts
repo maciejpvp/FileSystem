@@ -54,6 +54,12 @@ export const handler: Handler = async (
   if (!isS3UploadSuccess) {
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
       body: JSON.stringify({
         errorCode: 1,
         message: "Something went wrong",
@@ -74,6 +80,12 @@ export const handler: Handler = async (
   if (!isDynamoUploadSuccess) {
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
       body: JSON.stringify({
         errorCode: 1,
         message: "Something went wrong",
@@ -83,6 +95,12 @@ export const handler: Handler = async (
 
   return {
     statusCode: 201,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+      "Access-Control-Allow-Credentials": "true",
+    },
     body: JSON.stringify({
       message: "Successfully uploaded file",
       tableName,
