@@ -218,5 +218,17 @@ export class FileSystemStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
+
+    const createFolderResource = api.root.addResource("create-folder");
+    addCorsMock(createFolderResource);
+
+    createFolderResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createFolder),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
+    );
   }
 }

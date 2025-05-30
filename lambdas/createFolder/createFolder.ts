@@ -29,7 +29,7 @@ export const handler: Handler = async (
     isFolder: { BOOL: true },
   };
 
-  const isDynamoUploadSuccess = uploadToDynamo(item, tableName, dynamodb);
+  const isDynamoUploadSuccess = await uploadToDynamo(item, tableName, dynamodb);
 
   if (!isDynamoUploadSuccess) {
     return {
@@ -42,6 +42,8 @@ export const handler: Handler = async (
       },
       body: JSON.stringify({
         errorCode: 1,
+        folderName,
+        item,
         message: "Something went wrong",
       }),
     };

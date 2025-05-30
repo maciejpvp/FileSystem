@@ -9,7 +9,7 @@ export const uploadToDynamo = async (
   Item: FileStructureDocument,
   TableName: string,
   client: DynamoDBClient,
-): Promise<boolean> => {
+) => {
   try {
     const commandInput: PutItemCommandInput = {
       TableName,

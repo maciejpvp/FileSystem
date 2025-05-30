@@ -91,6 +91,7 @@ export const handler: Handler = async (
   const command = new GetObjectCommand({
     Bucket: bucketName,
     Key: s3Path,
+    ResponseContentDisposition: `attachment; filename="${item.fileName}"`,
   });
 
   let url;
