@@ -9,6 +9,7 @@ import * as dynamo from "aws-cdk-lib/aws-dynamodb";
 import { GOOGLE_CLIENT_ID } from "../env";
 import { addCorsMock } from "../utils/cors";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as iam from "aws-cdk-lib/aws-iam";
 
 export class FileSystemStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -188,17 +189,30 @@ export class FileSystemStack extends cdk.Stack {
     bucket.grantReadWrite(deleteFile);
     fileStructureDB.grantReadWriteData(deleteFile);
 
+    const deleteFolderFnName = "DeleteFolderFunction";
     const deleteFolder = new NodejsFunction(this, "deleteFolder", {
+      functionName: deleteFolderFnName,
       runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
       entry: path.join(__dirname, "../lambdas/deleteFolder/deleteFolder.ts"),
       handler: "handler",
       environment: {
         BUCKET_NAME: bucket.bucketName,
         DYNAMODB_NAME: fileStructureDB.tableName,
+        LAMBDA_NAME: deleteFolderFnName,
       },
     });
     bucket.grantReadWrite(deleteFolder);
     fileStructureDB.grantReadWriteData(deleteFolder);
+
+    const policy = new iam.Policy(this, "InvokeSelfPolicy", {
+      statements: [
+        new iam.PolicyStatement({
+          actions: ["lambda:InvokeFunction"],
+          resources: [deleteFolder.functionArn],
+        }),
+      ],
+    });
+    policy.attachToRole(deleteFolder.role!);
 
     /////////////////////////////////
     // API Gateway

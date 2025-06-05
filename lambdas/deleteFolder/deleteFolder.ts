@@ -12,14 +12,21 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { FileType } from "../../types";
 import { S3Client } from "@aws-sdk/client-s3";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
 const s3Client = new S3Client();
 const dynamodb = new DynamoDBClient({});
+const lambdaClient = new LambdaClient({});
 const docClient = DynamoDBDocumentClient.from(dynamodb);
 const tableName = process.env.DYNAMODB_NAME;
 const bucketName = process.env.BUCKET_NAME;
+const lambdaName = process.env.LAMBDA_NAME;
 
-export const deleteFiles = async (path: string) => {
+export const deleteFiles = async (
+  path: string,
+  userId: string,
+  depth: number,
+) => {
   const commandInput: QueryCommandInput = {
     TableName: tableName,
     IndexName: "byParentId",
@@ -30,9 +37,7 @@ export const deleteFiles = async (path: string) => {
   };
 
   const command = new QueryCommand(commandInput);
-
   const response = await dynamodb.send(command);
-
   const items = response.Items;
 
   if (!items) return true;
@@ -40,11 +45,35 @@ export const deleteFiles = async (path: string) => {
   let foundedFolders = [];
 
   for (const item of items) {
-    const isAFolder = item.isFolder.S;
+    const isAFolder = item.isFolder.BOOL;
     if (isAFolder) {
       foundedFolders.push(item);
+      const payload = {
+        uuid: item.uuid.S,
+        depth: depth + 1,
+      };
+
+      const invokeCommand = new InvokeCommand({
+        FunctionName: lambdaName,
+        InvocationType: "Event", // async
+        Payload: Buffer.from(
+          JSON.stringify({
+            body: JSON.stringify(payload),
+            requestContext: {
+              authorizer: {
+                claims: {
+                  sub: userId,
+                },
+              },
+            },
+          }),
+        ),
+      });
+
+      await lambdaClient.send(invokeCommand);
       continue;
     }
+
     await deleteFromDynamo(
       {
         userId: item.userId,
@@ -64,6 +93,10 @@ export const handler: Handler = async (
   const userId = event.requestContext.authorizer?.claims.sub;
 
   const body = JSON.parse(event.body || "{}");
+  const depth = body.depth || 0;
+
+  if (depth > 2) return sendResponse(500, { message: "Depth" });
+
   const fileUUID = body.uuid || "";
 
   let dynamoResult;
@@ -108,7 +141,7 @@ export const handler: Handler = async (
   }
   //Delete all files inside this folder
 
-  const items = await deleteFiles(path);
+  const items = await deleteFiles(path, userId, depth);
 
   //Delete all files from s3
   const s3Success = await deleteAllWithPrefix(s3Client, bucketName!, path);
