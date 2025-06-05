@@ -8,6 +8,7 @@ import {
 import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { sendResponse } from "../utils";
 
 const dynamodb = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamodb);
@@ -35,58 +36,37 @@ export const handler: Handler = async (
       }),
     );
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        message: "failed",
-        err,
-      }),
-    };
+    return sendResponse(500, {
+      message: "failed",
+      err,
+    });
   }
 
   const item = result?.Item;
 
   if (!item) {
-    return {
-      statusCode: 400,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        errorCode: 1,
-        message: "Item not found",
-      }),
-    };
+    return sendResponse(400, {
+      errorCode: 1,
+      message: "Item not found",
+    });
   }
 
   if (item.isFolder) {
-    return {
-      statusCode: 400,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        errorCode: 2,
-        message: "Cant download a folder",
-      }),
-    };
+    return sendResponse(400, {
+      errorCode: 2,
+      message: "Cant download a folder",
+    });
   }
 
   const fileExtension = item.fileName.split(".").pop();
 
-  const s3Path = `${item.parentPath}${item.uuid}.${fileExtension}`;
+  let parentPath = item.parentPath.trim();
+
+  if (!parentPath.endsWith("/")) {
+    parentPath = parentPath + "/";
+  }
+
+  const s3Path = `${parentPath}${item.uuid}.${fileExtension}`;
 
   const command = new GetObjectCommand({
     Bucket: bucketName,
@@ -101,33 +81,15 @@ export const handler: Handler = async (
       signingRegion: "eu-central-1",
     });
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        message: "failed",
-        err,
-      }),
-    };
+    return sendResponse(500, {
+      message: "failed",
+      err,
+    });
   }
 
-  return {
-    statusCode: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-      "Access-Control-Allow-Credentials": "true",
-    },
-    body: JSON.stringify({
-      result,
-      s3Path,
-      url,
-    }),
-  };
+  return sendResponse(200, {
+    result,
+    s3Path,
+    url,
+  });
 };

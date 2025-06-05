@@ -9,6 +9,7 @@ import {
   APIGatewayProxyResult,
 } from "aws-lambda";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { sendResponse } from "../utils";
 
 const dynamodb = new DynamoDBClient({});
 
@@ -37,18 +38,9 @@ export const handler: Handler = async (
 
   const files = response.Items?.map((item) => unmarshall(item)) ?? [];
 
-  return {
-    statusCode: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-      "Access-Control-Allow-Credentials": "true",
-    },
-    body: JSON.stringify({
-      message: "Successfully got files",
-      files,
-      response,
-    }),
-  };
+  return sendResponse(200, {
+    message: "Successfully got files",
+    files,
+    response,
+  });
 };

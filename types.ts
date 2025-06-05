@@ -5,3 +5,11 @@ export type FileStructureDocument = {
   fileName: { S: string };
   isFolder: { BOOL: boolean };
 };
+
+export type FileType = {
+  userId: string;
+  uuid: string;
+  parentPath: string;
+  fileName: string;
+  isFolder: boolean;
+};

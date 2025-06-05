@@ -6,8 +6,9 @@ import * as path from "path";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamo from "aws-cdk-lib/aws-dynamodb";
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "../env";
+import { GOOGLE_CLIENT_ID } from "../env";
 import { addCorsMock } from "../utils/cors";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 
 export class FileSystemStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -27,12 +28,20 @@ export class FileSystemStack extends cdk.Stack {
       },
     });
 
+    const secret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "GoogleSecret",
+      "prod/google/OAuthSecret",
+    );
+
+    const clientSecretValue = secret.secretValueFromJson("googleSecret");
+
     const googleProvider = new cognito.UserPoolIdentityProviderGoogle(
       this,
       "Google",
       {
         clientId: GOOGLE_CLIENT_ID,
-        clientSecret: GOOGLE_CLIENT_SECRET,
+        clientSecretValue,
         userPool,
         scopes: ["openid", "email", "profile"],
         attributeMapping: {
@@ -117,7 +126,7 @@ export class FileSystemStack extends cdk.Stack {
     /////////////////////////////////
 
     const uploadFileLambda = new NodejsFunction(this, "uploadFileLambda", {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
       entry: path.join(__dirname, "../lambdas/uploadFile/uploadFile.ts"),
       handler: "handler",
       environment: {
@@ -129,7 +138,7 @@ export class FileSystemStack extends cdk.Stack {
     fileStructureDB.grantWriteData(uploadFileLambda);
 
     const createFolder = new NodejsFunction(this, "createFolderLambda", {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
       entry: path.join(__dirname, "../lambdas/createFolder/createFolder.ts"),
       handler: "handler",
       environment: {
@@ -141,7 +150,7 @@ export class FileSystemStack extends cdk.Stack {
     fileStructureDB.grantWriteData(createFolder);
 
     const getFilesForUser = new NodejsFunction(this, "getFilesForUser", {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
       entry: path.join(
         __dirname,
         "../lambdas/getFilesForUser/getFilesForUser.ts",
@@ -156,7 +165,7 @@ export class FileSystemStack extends cdk.Stack {
     fileStructureDB.grantReadData(getFilesForUser);
 
     const downloadFile = new NodejsFunction(this, "downloadFile", {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
       entry: path.join(__dirname, "../lambdas/downloadFile/downloadFile.ts"),
       handler: "handler",
       environment: {
@@ -166,6 +175,30 @@ export class FileSystemStack extends cdk.Stack {
     });
     bucket.grantRead(downloadFile);
     fileStructureDB.grantReadData(downloadFile);
+
+    const deleteFile = new NodejsFunction(this, "deleteFile", {
+      runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
+      entry: path.join(__dirname, "../lambdas/deleteFile/deleteFile.ts"),
+      handler: "handler",
+      environment: {
+        BUCKET_NAME: bucket.bucketName,
+        DYNAMODB_NAME: fileStructureDB.tableName,
+      },
+    });
+    bucket.grantReadWrite(deleteFile);
+    fileStructureDB.grantReadWriteData(deleteFile);
+
+    const deleteFolder = new NodejsFunction(this, "deleteFolder", {
+      runtime: cdk.aws_lambda.Runtime.NODEJS_22_X,
+      entry: path.join(__dirname, "../lambdas/deleteFolder/deleteFolder.ts"),
+      handler: "handler",
+      environment: {
+        BUCKET_NAME: bucket.bucketName,
+        DYNAMODB_NAME: fileStructureDB.tableName,
+      },
+    });
+    bucket.grantReadWrite(deleteFolder);
+    fileStructureDB.grantReadWriteData(deleteFolder);
 
     /////////////////////////////////
     // API Gateway
@@ -225,6 +258,30 @@ export class FileSystemStack extends cdk.Stack {
     createFolderResource.addMethod(
       "POST",
       new apigateway.LambdaIntegration(createFolder),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
+    );
+
+    const deleteFileResource = api.root.addResource("delete-file");
+    addCorsMock(deleteFileResource);
+
+    deleteFileResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteFile),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
+    );
+
+    const deleteFolderResource = api.root.addResource("delete-folder");
+    addCorsMock(deleteFolderResource);
+
+    deleteFolderResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteFolder),
       {
         authorizer,
         authorizationType: apigateway.AuthorizationType.COGNITO,

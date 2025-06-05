@@ -5,8 +5,9 @@ import {
 } from "aws-lambda";
 import { FileStructureDocument } from "../../types";
 import { v4 as uuidv4 } from "uuid";
-import { uploadToDynamo } from "./utils";
+import { sendResponse, uploadToDynamo } from "../utils";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 const dynamodb = new DynamoDBClient({});
 
@@ -32,33 +33,15 @@ export const handler: Handler = async (
   const isDynamoUploadSuccess = await uploadToDynamo(item, tableName, dynamodb);
 
   if (!isDynamoUploadSuccess) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        errorCode: 1,
-        folderName,
-        item,
-        message: "Something went wrong",
-      }),
-    };
+    return sendResponse(500, {
+      errorCode: 1,
+      folderName,
+      item,
+      message: "Something went wrong",
+    });
   }
 
-  return {
-    statusCode: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-      "Access-Control-Allow-Credentials": "true",
-    },
-    body: JSON.stringify({
-      message: "Folder Created",
-    }),
-  };
+  const newItem = unmarshall(item);
+
+  return sendResponse(200, { message: "Folder Created", item: newItem });
 };

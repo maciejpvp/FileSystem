@@ -1,19 +1,16 @@
-import {
-  S3Client,
-  PutObjectCommand,
-  PutObjectCommandInput,
-} from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommandInput } from "@aws-sdk/client-s3";
 import {
   APIGatewayProxyEvent,
   APIGatewayProxyResult,
   Handler,
 } from "aws-lambda";
 import * as parser from "lambda-multipart-parser-v2";
-import { uploadToDynamo, uploadToS3 } from "./utils";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { FileStructureDocument } from "../../types";
+import { sendResponse, uploadToDynamo, uploadToS3 } from "../utils";
 
 const s3 = new S3Client();
 const dynamodb = new DynamoDBClient({});
@@ -52,19 +49,10 @@ export const handler: Handler = async (
   const isS3UploadSuccess = await uploadToS3(s3CommandInput, s3);
 
   if (!isS3UploadSuccess) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        errorCode: 1,
-        message: "Something went wrong",
-      }),
-    };
+    return sendResponse(500, {
+      errorCode: 1,
+      message: "Something went wrong",
+    });
   }
 
   const item: FileStructureDocument = {
@@ -78,35 +66,19 @@ export const handler: Handler = async (
   const isDynamoUploadSuccess = await uploadToDynamo(item, tableName, dynamodb);
 
   if (!isDynamoUploadSuccess) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-      },
-      body: JSON.stringify({
-        errorCode: 1,
-        message: "Something went wrong",
-      }),
-    };
+    return sendResponse(500, {
+      errorCode: 1,
+      message: "Something went wrong",
+    });
   }
 
-  return {
-    statusCode: 201,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-      "Access-Control-Allow-Credentials": "true",
-    },
-    body: JSON.stringify({
-      message: "Successfully uploaded file",
-      tableName,
-      isDynamoUploadSuccess,
-      item,
-      fileContentType: file.contentType,
-    }),
-  };
+  const newItem = unmarshall(item);
+
+  return sendResponse(201, {
+    message: "Successfully uploaded file",
+    tableName,
+    isDynamoUploadSuccess,
+    item: newItem,
+    fileContentType: file.contentType,
+  });
 };
