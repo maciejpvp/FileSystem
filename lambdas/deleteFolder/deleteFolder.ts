@@ -95,7 +95,7 @@ export const handler: Handler = async (
   const body = JSON.parse(event.body || "{}");
   const depth = body.depth || 0;
 
-  if (depth > 2) return sendResponse(500, { message: "Depth" });
+  if (depth > 6) return sendResponse(500, { message: "Max Depth Reached" });
 
   const fileUUID = body.uuid || "";
 

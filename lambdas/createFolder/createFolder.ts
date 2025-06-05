@@ -10,6 +10,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 const dynamodb = new DynamoDBClient({});
+const MAX_DEPTH = 5;
 
 export const handler: Handler = async (
   event: APIGatewayProxyEvent,
@@ -19,6 +20,16 @@ export const handler: Handler = async (
   const body = JSON.parse(event.body || "{}");
 
   const path = body.path || "";
+
+  const segments = path === "" ? [] : path.split("/");
+
+  if (segments.length >= MAX_DEPTH) {
+    return sendResponse(400, {
+      errorCode: 2,
+      message: `Max folder depth of ${MAX_DEPTH} exceeded`,
+    });
+  }
+
   const folderName = body.name;
   const uuid = uuidv4();
 
