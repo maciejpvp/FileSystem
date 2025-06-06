@@ -49,7 +49,7 @@ export const deleteFiles = async (
     if (isAFolder) {
       foundedFolders.push(item);
       const payload = {
-        uuid: item.uuid.S,
+        uuids: [item.uuid.S],
         depth: depth + 1,
       };
 
@@ -97,67 +97,78 @@ export const handler: Handler = async (
 
   if (depth > 6) return sendResponse(500, { message: "Max Depth Reached" });
 
-  const fileUUID = body.uuid || "";
+  const fileUUIDS = body.uuids || [];
 
-  let dynamoResult;
+  let successfullyDeleted: string[] = [];
+  let failedToDelete: string[] = [];
 
-  try {
-    dynamoResult = await docClient.send(
-      new GetCommand({
-        TableName: tableName,
-        Key: { userId, uuid: fileUUID },
-      }),
+  for (const fileUUID of fileUUIDS) {
+    let dynamoResult;
+
+    try {
+      dynamoResult = await docClient.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: { userId, uuid: fileUUID },
+        }),
+      );
+    } catch (err) {
+      failedToDelete.push(fileUUID);
+      continue;
+    }
+
+    const folder = dynamoResult.Item as FileType;
+
+    let parentPath = folder.parentPath.trim();
+
+    if (!parentPath.endsWith("/")) {
+      parentPath = parentPath + "/";
+    }
+
+    const path = `${parentPath}${folder.fileName}`;
+
+    const dynamoSuccess = await deleteFromDynamo(
+      {
+        userId: { S: userId },
+        uuid: { S: fileUUID },
+      },
+      tableName!,
+      dynamodb,
     );
-  } catch (err) {
-    return sendResponse(500, {
-      message: "failed",
-      err,
-    });
+
+    if (!dynamoSuccess) {
+      failedToDelete.push(fileUUID);
+      continue;
+    }
+    //Delete all files inside this folder
+
+    await deleteFiles(path, userId, depth);
+
+    //Delete all files from s3
+    const s3Success = await deleteAllWithPrefix(s3Client, bucketName!, path);
+
+    if (!s3Success) {
+      failedToDelete.push(fileUUID);
+      continue;
+    }
+
+    successfullyDeleted.push(fileUUID);
   }
 
-  const folder = dynamoResult.Item as FileType;
-
-  let parentPath = folder.parentPath.trim();
-
-  if (!parentPath.endsWith("/")) {
-    parentPath = parentPath + "/";
-  }
-
-  const path = `${parentPath}${folder.fileName}`;
-
-  const dynamoSuccess = await deleteFromDynamo(
-    {
-      userId: { S: userId },
-      uuid: { S: fileUUID },
-    },
-    tableName!,
-    dynamodb,
-  );
-
-  if (!dynamoSuccess) {
-    return sendResponse(500, {
+  if (successfullyDeleted.length === 0) {
+    return sendResponse(400, {
       success: false,
-    });
-  }
-  //Delete all files inside this folder
-
-  const items = await deleteFiles(path, userId, depth);
-
-  //Delete all files from s3
-  const s3Success = await deleteAllWithPrefix(s3Client, bucketName!, path);
-
-  if (!s3Success) {
-    return sendResponse(500, {
-      success: false,
+      successfullyDeleted,
+      failedToDelete,
     });
   }
 
   return sendResponse(200, {
     success: true,
+    successfullyDeleted,
+    failedToDelete,
     debug: {
       tableName,
-      path,
-      items,
     },
   });
 };
