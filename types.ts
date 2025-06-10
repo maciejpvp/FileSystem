@@ -4,6 +4,7 @@ export type FileStructureDocument = {
   parentPath: { S: string };
   fileName: { S: string };
   isFolder: { BOOL: boolean };
+  isReady?: { BOOL: boolean };
 };
 
 export type FileType = {
@@ -12,4 +13,5 @@ export type FileType = {
   parentPath: string;
   fileName: string;
   isFolder: boolean;
+  isReady?: boolean;
 };

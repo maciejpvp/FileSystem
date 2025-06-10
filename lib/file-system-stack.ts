@@ -6,6 +6,7 @@ import { createFileStructureTable } from "./storage/DynamoDBTable";
 import { createLambdas } from "./lambdas";
 import { configureApiGateway } from "./api/ApiGatewayResources";
 import { createWebsiteBucket } from "./website";
+import { createUserStorageTable } from "./storage/UserStorage";
 
 export class FileSystemStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -15,8 +16,9 @@ export class FileSystemStack extends cdk.Stack {
     const { userPool } = createAuthResources(this, websiteUrl);
     const bucket = createUserFilesBucket(this);
     const fileStructureDB = createFileStructureTable(this);
+    const userStorageDB = createUserStorageTable(this);
 
-    const lambdas = createLambdas(this, bucket, fileStructureDB);
+    const lambdas = createLambdas(this, bucket, fileStructureDB, userStorageDB);
     configureApiGateway(this, userPool, lambdas);
   }
 }

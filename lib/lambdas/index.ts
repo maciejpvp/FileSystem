@@ -8,8 +8,14 @@ import { createGetFilesLambda } from "./GetFilesForUserLambda";
 import { createDownloadFileLambda } from "./DownloadFileLambda";
 import { createDeleteFileLambda } from "./DeleteFileLambda";
 import { createDeleteFolderLambda } from "./DeleteFolderLambda";
+import { createUpdateAvailableStorageLambda } from "./UpdateAvailableStorage";
 
-export function createLambdas(stack: Stack, bucket: Bucket, table: Table) {
+export function createLambdas(
+  stack: Stack,
+  bucket: Bucket,
+  table: Table,
+  userStorageTable: Table,
+) {
   return {
     uploadFileLambda: createUploadFileLambda(stack, bucket, table),
     createFolderLambda: createCreateFolderLambda(stack, bucket, table),
@@ -17,5 +23,11 @@ export function createLambdas(stack: Stack, bucket: Bucket, table: Table) {
     downloadFileLambda: createDownloadFileLambda(stack, bucket, table),
     deleteFileLambda: createDeleteFileLambda(stack, bucket, table),
     deleteFolderLambda: createDeleteFolderLambda(stack, bucket, table),
+    updateAvailableStorage: createUpdateAvailableStorageLambda(
+      stack,
+      bucket,
+      table,
+      userStorageTable,
+    ),
   };
 }

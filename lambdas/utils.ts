@@ -99,7 +99,7 @@ export const deleteAllWithPrefix = async (
 };
 
 export const uploadToDynamo = async (
-  Item: FileStructureDocument,
+  Item: any,
   TableName: string,
   client: DynamoDBClient,
 ) => {

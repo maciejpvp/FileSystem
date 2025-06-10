@@ -6,5 +6,14 @@ export function createUserFilesBucket(stack: Stack): s3.Bucket {
     blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     removalPolicy: RemovalPolicy.DESTROY,
     autoDeleteObjects: true,
+    cors: [
+      {
+        allowedMethods: [s3.HttpMethods.PUT],
+        allowedOrigins: ["*"],
+        allowedHeaders: ["*"],
+        exposedHeaders: ["ETag"],
+        maxAge: 3000,
+      },
+    ],
   });
 }
