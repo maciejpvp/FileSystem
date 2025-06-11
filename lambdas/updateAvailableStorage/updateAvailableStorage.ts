@@ -57,7 +57,7 @@ export const handler = async (event: S3Event) => {
         userId,
       },
       UpdateExpression:
-        "SET usedSpace = if_not_exists(usedSpace, :zero) + :size",
+        "SET usedSpace = if_not_exists(usedSpace, :zero) + :size, pendingSpace = if_not_exists(pendingSpace, :zero) - :size",
       ExpressionAttributeValues: {
         ":size": fileSize,
         ":zero": 0,

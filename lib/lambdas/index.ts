@@ -18,7 +18,12 @@ export function createLambdas(
   userStorageTable: Table,
 ) {
   return {
-    uploadFileLambda: createUploadFileLambda(stack, bucket, table),
+    uploadFileLambda: createUploadFileLambda(
+      stack,
+      bucket,
+      table,
+      userStorageTable,
+    ),
     createFolderLambda: createCreateFolderLambda(stack, bucket, table),
     getFilesLambda: createGetFilesLambda(stack, bucket, table),
     downloadFileLambda: createDownloadFileLambda(stack, bucket, table),

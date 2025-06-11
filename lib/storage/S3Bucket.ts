@@ -8,7 +8,7 @@ export function createUserFilesBucket(stack: Stack): s3.Bucket {
     autoDeleteObjects: true,
     cors: [
       {
-        allowedMethods: [s3.HttpMethods.PUT],
+        allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
         allowedOrigins: ["*"],
         allowedHeaders: ["*"],
         exposedHeaders: ["ETag"],

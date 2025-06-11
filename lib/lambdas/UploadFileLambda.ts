@@ -9,6 +9,7 @@ export function createUploadFileLambda(
   stack: Stack,
   bucket: Bucket,
   table: Table,
+  userStorageTable: Table,
 ) {
   const fn = new NodejsFunction(stack, "uploadFileLambda", {
     runtime: lambda.Runtime.NODEJS_22_X,
@@ -17,10 +18,12 @@ export function createUploadFileLambda(
     environment: {
       BUCKET_NAME: bucket.bucketName,
       DYNAMODB_NAME: table.tableName,
+      userStorageTable: userStorageTable.tableName,
     },
   });
 
   bucket.grantPut(fn);
   table.grantWriteData(fn);
+  userStorageTable.grantReadWriteData(fn);
   return fn;
 }

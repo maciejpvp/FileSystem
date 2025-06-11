@@ -14,13 +14,22 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { FileStructureDocument } from "../../types";
 import { sendResponse, uploadToDynamo, uploadToS3 } from "../utils";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
+import { getUserUsedSpace } from "../../services/getUserUsedSpace";
+import {
+  DynamoDBDocumentClient,
+  UpdateCommand,
+  UpdateCommandInput,
+} from "@aws-sdk/lib-dynamodb";
 
 const s3 = new S3Client();
 const dynamodb = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(dynamodb);
+
+const FREE_PLAN_SPACE = 5_000_000_000; // 5 GB
 
 export const handler: Handler = async (
-  event: APIGatewayProxyEvent
+  event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   const userId = event.requestContext.authorizer?.claims.sub;
 
@@ -28,9 +37,11 @@ export const handler: Handler = async (
 
   const bucketName = process.env.BUCKET_NAME;
   const tableName = process.env.DYNAMODB_NAME || "";
+  const userStorageTable = process.env.userStorageTable;
 
   const body = JSON.parse(event.body || "{}");
   const filename = body.filename;
+  const filesize = body.filesize;
 
   if (!filename)
     return sendResponse(400, {
@@ -49,12 +60,47 @@ export const handler: Handler = async (
     s3FilePath = `${userId}/${fileUUID}.${fileExtension}`;
   }
 
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: s3FilePath,
-  });
+  const { usedSpace, pendingSpace } = await getUserUsedSpace(userId);
 
-  const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+  if (
+    Number(usedSpace) + Number(pendingSpace) + Number(filesize) >
+    FREE_PLAN_SPACE
+  ) {
+    return sendResponse(400, {
+      errorCode: 2,
+      message: "Not enough space.",
+    });
+  }
+
+  const addPendingSizeCommand: UpdateCommandInput = {
+    TableName: userStorageTable,
+    Key: {
+      userId,
+    },
+    UpdateExpression:
+      "SET pendingSpace = if_not_exists(pendingSpace, :zero) + :size",
+    ExpressionAttributeValues: {
+      ":size": filesize,
+      ":zero": 0,
+    },
+    ReturnValues: "ALL_NEW",
+  };
+
+  try {
+    const result = await docClient.send(
+      new UpdateCommand(addPendingSizeCommand),
+    );
+    console.log("Zaktualizowano:", result.Attributes);
+  } catch (error) {
+    console.error("Błąd aktualizacji:", error);
+  }
+
+  const { url: signedUrl, fields } = await createPresignedPost(s3, {
+    Bucket: bucketName!,
+    Key: s3FilePath,
+    Expires: 3600,
+    Conditions: [["content-length-range", 0, filesize]],
+  });
 
   const item: FileStructureDocument = {
     userId: { S: userId },
@@ -81,5 +127,6 @@ export const handler: Handler = async (
     signedUrl,
     isDynamoUploadSuccess,
     item: newItem,
+    fields,
   });
 };
