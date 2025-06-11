@@ -5,6 +5,7 @@ export type FileStructureDocument = {
   fileName: { S: string };
   isFolder: { BOOL: boolean };
   isReady?: { BOOL: boolean };
+  size?: { N: string };
 };
 
 export type FileType = {
@@ -14,4 +15,5 @@ export type FileType = {
   fileName: string;
   isFolder: boolean;
   isReady?: boolean;
+  size?: string;
 };

@@ -48,6 +48,13 @@ export function configureApiGateway(
     "{uuid}",
   ]);
   secureRoute(
+    "GetUsedSpace",
+    "GET",
+    lambdas.getAvailableStorage,
+    "get-storage",
+  );
+
+  secureRoute(
     "CreateFolder",
     "POST",
     lambdas.createFolderLambda,

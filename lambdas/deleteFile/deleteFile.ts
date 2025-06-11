@@ -5,7 +5,12 @@ import {
   APIGatewayProxyEvent,
   APIGatewayProxyResult,
 } from "aws-lambda";
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  UpdateCommand,
+  UpdateCommandInput,
+} from "@aws-sdk/lib-dynamodb";
 import { FileType } from "../../types";
 import { S3Client } from "@aws-sdk/client-s3";
 
@@ -14,6 +19,7 @@ const dynamodb = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamodb);
 const tableName = process.env.DYNAMODB_NAME;
 const bucketName = process.env.BUCKET_NAME;
+const userStorageTable = process.env.userStorageTable;
 
 export const handler: Handler = async (
   event: APIGatewayProxyEvent,
@@ -26,6 +32,7 @@ export const handler: Handler = async (
 
   let successfullyDeleted = [];
   let failedToDelete = [];
+  let deletedDataSize = 0;
 
   for (const fileUUID of filesToDelete) {
     let dynamoResult;
@@ -43,6 +50,10 @@ export const handler: Handler = async (
     }
 
     const dynamoItem = dynamoResult.Item as FileType;
+
+    const fileSize: number = dynamoItem.size ? Number(dynamoItem.size) : 0;
+
+    deletedDataSize = deletedDataSize + fileSize;
 
     const fileExtension = dynamoItem.fileName.split(".").pop();
 
@@ -81,6 +92,27 @@ export const handler: Handler = async (
       continue;
     }
     successfullyDeleted.push(fileUUID);
+  }
+
+  const updateUserSpaceCommand: UpdateCommandInput = {
+    TableName: userStorageTable,
+    Key: {
+      userId,
+    },
+    UpdateExpression: "SET usedSpace = usedSpace - :deletedDataSize",
+    ExpressionAttributeValues: {
+      ":deletedDataSize": deletedDataSize,
+    },
+    ReturnValues: "ALL_NEW",
+  };
+
+  try {
+    const result = await docClient.send(
+      new UpdateCommand(updateUserSpaceCommand),
+    );
+    console.log("Zaktualizowano:", result.Attributes);
+  } catch (error) {
+    console.error("Błąd aktualizacji:", error);
   }
 
   if (successfullyDeleted.length === 0) {
