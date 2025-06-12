@@ -9,6 +9,8 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   QueryCommandInput,
+  UpdateCommand,
+  UpdateCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 import { FileType } from "../../types";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -21,6 +23,7 @@ const docClient = DynamoDBDocumentClient.from(dynamodb);
 const tableName = process.env.DYNAMODB_NAME;
 const bucketName = process.env.BUCKET_NAME;
 const lambdaName = process.env.LAMBDA_NAME;
+const userStorageTable = process.env.userStorageTable;
 
 export const deleteFiles = async (
   path: string,
@@ -44,6 +47,8 @@ export const deleteFiles = async (
 
   let foundedFolders = [];
 
+  let deletedDataSize = 0;
+
   for (const item of items) {
     const isAFolder = item.isFolder.BOOL;
     if (isAFolder) {
@@ -55,7 +60,7 @@ export const deleteFiles = async (
 
       const invokeCommand = new InvokeCommand({
         FunctionName: lambdaName,
-        InvocationType: "Event", // async
+        InvocationType: "Event",
         Payload: Buffer.from(
           JSON.stringify({
             body: JSON.stringify(payload),
@@ -74,6 +79,10 @@ export const deleteFiles = async (
       continue;
     }
 
+    if (!isAFolder) {
+      deletedDataSize += Number(item?.size?.N) ?? 0;
+    }
+
     await deleteFromDynamo(
       {
         userId: item.userId,
@@ -84,7 +93,30 @@ export const deleteFiles = async (
     );
   }
 
-  return foundedFolders;
+  const updateUserSpaceCommand: UpdateCommandInput = {
+    TableName: userStorageTable,
+    Key: {
+      userId,
+    },
+    UpdateExpression: "SET usedSpace = usedSpace - :deletedDataSize",
+    ExpressionAttributeValues: {
+      ":deletedDataSize": deletedDataSize,
+    },
+    ReturnValues: "ALL_NEW",
+  };
+
+  try {
+    const result = await docClient.send(
+      new UpdateCommand(updateUserSpaceCommand),
+    );
+    console.log("Zaktualizowano:", result.Attributes);
+  } catch (error) {
+    console.error("Błąd aktualizacji:", error);
+  }
+
+  console.log(deletedDataSize);
+
+  return deletedDataSize;
 };
 
 export const handler: Handler = async (

@@ -10,6 +10,7 @@ export function createDeleteFolderLambda(
   stack: Stack,
   bucket: Bucket,
   table: Table,
+  userStorageTable: Table,
 ) {
   const functionName = "DeleteFolderFunction";
   const fn = new NodejsFunction(stack, "deleteFolder", {
@@ -21,11 +22,13 @@ export function createDeleteFolderLambda(
       BUCKET_NAME: bucket.bucketName,
       DYNAMODB_NAME: table.tableName,
       LAMBDA_NAME: functionName,
+      userStorageTable: userStorageTable.tableName,
     },
   });
 
   bucket.grantReadWrite(fn);
   table.grantReadWriteData(fn);
+  userStorageTable.grantReadWriteData(fn);
 
   new iam.Policy(stack, "InvokeSelfPolicy", {
     statements: [

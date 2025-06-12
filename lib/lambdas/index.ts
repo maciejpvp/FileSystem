@@ -33,7 +33,12 @@ export function createLambdas(
       table,
       userStorageTable,
     ),
-    deleteFolderLambda: createDeleteFolderLambda(stack, bucket, table),
+    deleteFolderLambda: createDeleteFolderLambda(
+      stack,
+      bucket,
+      table,
+      userStorageTable,
+    ),
     updateAvailableStorage: createUpdateAvailableStorageLambda(
       stack,
       bucket,
